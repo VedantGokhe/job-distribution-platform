@@ -43,7 +43,7 @@ def get_db():
 @app.post("/jobs")
 def create_job(job: Job, db: Session = Depends(get_db)):
     try:
-        db_job = JobDB(**job.model_dump())  # Use model_dump() for Pydantic v2
+        db_job = JobDB(**job.model_dump())
         db.add(db_job)
         db.commit()
         db.refresh(db_job)
@@ -67,13 +67,12 @@ def get_jobs(db: Session = Depends(get_db)):
     }
 
 # =========================
-# INDEED XML FEED (SECURE)
+# INDEED XML FEED
 # =========================
 @app.get("/feeds/indeed")
 def indeed_feed(db: Session = Depends(get_db)):
     jobs = db.query(JobDB).all()
-    
-    # Create XML properly with escaping
+
     root = ET.Element("jobs")
     for job in jobs:
         job_elem = ET.SubElement(root, "job")
@@ -82,6 +81,6 @@ def indeed_feed(db: Session = Depends(get_db)):
         ET.SubElement(job_elem, "location").text = job.location
         ET.SubElement(job_elem, "description").text = job.description
         ET.SubElement(job_elem, "apply_url").text = job.apply_url
-    
-    xml = ET.tostring(root, encoding='unicode', method='xml')
+
+    xml = ET.tostring(root, encoding="utf-8", xml_declaration=True)
     return Response(content=xml, media_type="application/xml")
