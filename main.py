@@ -173,6 +173,7 @@ def job_detail_page(job_id: str, db: Session = Depends(get_db)):
     <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <meta name="google-site-verification" content="h8SjOEZqUWqQu6W9DwxUJRgRU5ElY-RyuUAIH-0CETI">
         <title>{job.title} | {job.company}</title>
         <meta name="description" content="{job.title} position at {job.company}. {job.employment_type if hasattr(job, 'employment_type') else 'Full-time'} role in {job.location}.">
         
