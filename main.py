@@ -124,21 +124,35 @@ def job_detail_page(job_id: str, db: Session = Depends(get_db)):
         },
         "datePosted": date_posted,
         "validThrough": valid_through,
-        "employmentType": job.employment_type,
+        "employmentType": job.employment_type if hasattr(job, 'employment_type') else "FULL_TIME",
         "hiringOrganization": {
             "@type": "Organization",
             "name": job.company,
-            "sameAs": "https://www.artizence.com"
+            "sameAs": "https://www.artizence.com",
+            "logo": "https://www.artizence.com/logo.png"
         },
         "jobLocation": {
             "@type": "Place",
             "address": {
                 "@type": "PostalAddress",
-                "addressLocality": job.location,
+                "addressLocality": job.location if job.location.lower() != "remote" else "India",
                 "addressCountry": "IN"
             }
-        },
-        "baseSalary": {
+        }
+    }
+    
+    # Add remote job location type if applicable
+    if job.location.lower() == "remote":
+        structured_data["jobLocationType"] = "TELECOMMUTE"
+        structured_data["applicantLocationRequirements"] = {
+            "@type": "Country",
+            "name": "IN"
+        }
+    
+    # Add salary information if available
+    if hasattr(job, 'salary') and job.salary:
+        # Assuming salary is a string like "6-9 LPA" or a number
+        structured_data["baseSalary"] = {
             "@type": "MonetaryAmount",
             "currency": "INR",
             "value": {
@@ -147,11 +161,6 @@ def job_detail_page(job_id: str, db: Session = Depends(get_db)):
                 "unitText": "YEAR"
             }
         }
-    }
-    
-    # Add remote job location type if applicable
-    if job.location.lower() == "remote":
-        structured_data["jobLocationType"] = "TELECOMMUTE"
     
     # Add direct apply URL if available
     if hasattr(job, 'apply_url') and job.apply_url:
@@ -165,7 +174,7 @@ def job_detail_page(job_id: str, db: Session = Depends(get_db)):
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <title>{job.title} | {job.company}</title>
-        <meta name="description" content="{job.title} position at {job.company}. {job.employment_type} role in {job.location}.">
+        <meta name="description" content="{job.title} position at {job.company}. {job.employment_type if hasattr(job, 'employment_type') else 'Full-time'} role in {job.location}.">
         
         <!-- Google JobPosting Structured Data -->
         <script type="application/ld+json">
@@ -221,15 +230,15 @@ def job_detail_page(job_id: str, db: Session = Depends(get_db)):
         
         <div class="job-meta">
             <p><strong>Location:</strong> {job.location}</p>
-            <p><strong>Experience:</strong> {job.experience}</p>
-            <p><strong>Employment Type:</strong> {job.employment_type}</p>
-            <p><strong>Salary:</strong> {job.salary}</p>
+            <p><strong>Experience:</strong> {job.experience if hasattr(job, 'experience') else 'Not specified'}</p>
+            <p><strong>Employment Type:</strong> {job.employment_type if hasattr(job, 'employment_type') else 'Full-time'}</p>
+            <p><strong>Salary:</strong> {job.salary if hasattr(job, 'salary') else 'Not disclosed'}</p>
         </div>
         
         <h2>Job Description</h2>
         <div>{job.description}</div>
         
-        <a href="{job.apply_url}" target="_blank" rel="noopener noreferrer">
+        <a href="{job.apply_url if hasattr(job, 'apply_url') and job.apply_url else '#'}" target="_blank" rel="noopener noreferrer">
             <button>Apply Now</button>
         </a>
     </body>
