@@ -1,14 +1,34 @@
 from fastapi import FastAPI, Depends, HTTPException
+from fastapi.responses import Response, HTMLResponse
 from pydantic import BaseModel
-from fastapi.responses import Response
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
-from database import engine, SessionLocal
+from database import engine, SessionLocal, Base
 from models import JobDB
-from database import Base
 import xml.etree.ElementTree as ET
+import json
+from datetime import datetime, timedelta
 
 app = FastAPI(title="Job Distribution Platform")
+
+
+@app.get("/", response_class=HTMLResponse)
+def home():
+    return """
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="google-site-verification" content="h8SjOEZqUWqQu6W9DwxUJRgRU5ElY-RyuUAIH-0CETI">
+        <title>Job Distribution Platform</title>
+    </head>
+    <body>
+        <h1>Job Distribution Platform</h1>
+        <p>This site hosts job postings for search engine indexing.</p>
+    </body>
+    </html>
+    """
+
 
 # Create DB tables
 Base.metadata.create_all(bind=engine)
@@ -173,8 +193,6 @@ def job_detail_page(job_id: str, db: Session = Depends(get_db)):
     <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <meta name="google-site-verification" content="h8SjOEZqUWqQu6W9DwxUJRgRU5ElY-RyuUAIH-0CETI">
-        <title>{job.title} | {job.company}</title>
         <meta name="description" content="{job.title} position at {job.company}. {job.employment_type if hasattr(job, 'employment_type') else 'Full-time'} role in {job.location}.">
         
         <!-- Google JobPosting Structured Data -->
