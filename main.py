@@ -84,3 +84,156 @@ def indeed_feed(db: Session = Depends(get_db)):
 
     xml = ET.tostring(root, encoding="utf-8", xml_declaration=True)
     return Response(content=xml, media_type="application/xml")
+
+
+from fastapi import Depends
+from fastapi.responses import HTMLResponse
+from sqlalchemy.orm import Session
+import json
+from datetime import datetime, timedelta
+
+
+@app.get("/jobs/{job_id}", response_class=HTMLResponse)
+def job_detail_page(job_id: str, db: Session = Depends(get_db)):
+    """
+    Render a job detail page with Google JobPosting structured data.
+    """
+    # Fetch job from database
+    job = db.query(JobDB).filter(JobDB.job_id == job_id).first()
+    
+    if not job:
+        return HTMLResponse(
+            content="<h1>Job not found</h1>", 
+            status_code=404
+        )
+    
+    # Dates for Google Jobs schema
+    date_posted = datetime.utcnow().strftime("%Y-%m-%d")
+    valid_through = (datetime.utcnow() + timedelta(days=30)).strftime("%Y-%m-%d")
+    
+    # Build Google JobPosting JSON-LD structured data
+    structured_data = {
+        "@context": "https://schema.org/",
+        "@type": "JobPosting",
+        "title": job.title,
+        "description": job.description,
+        "identifier": {
+            "@type": "PropertyValue",
+            "name": job.company,
+            "value": job.job_id
+        },
+        "datePosted": date_posted,
+        "validThrough": valid_through,
+        "employmentType": job.employment_type,
+        "hiringOrganization": {
+            "@type": "Organization",
+            "name": job.company,
+            "sameAs": "https://www.artizence.com"
+        },
+        "jobLocation": {
+            "@type": "Place",
+            "address": {
+                "@type": "PostalAddress",
+                "addressLocality": job.location,
+                "addressCountry": "IN"
+            }
+        },
+        "baseSalary": {
+            "@type": "MonetaryAmount",
+            "currency": "INR",
+            "value": {
+                "@type": "QuantitativeValue",
+                "value": job.salary,
+                "unitText": "YEAR"
+            }
+        }
+    }
+    
+    # Add remote job location type if applicable
+    if job.location.lower() == "remote":
+        structured_data["jobLocationType"] = "TELECOMMUTE"
+    
+    # Add direct apply URL if available
+    if hasattr(job, 'apply_url') and job.apply_url:
+        structured_data["directApply"] = True
+    
+    # HTML response with structured data
+    html_content = f"""
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>{job.title} | {job.company}</title>
+        <meta name="description" content="{job.title} position at {job.company}. {job.employment_type} role in {job.location}.">
+        
+        <!-- Google JobPosting Structured Data -->
+        <script type="application/ld+json">
+{json.dumps(structured_data, indent=2)}
+        </script>
+        
+        <style>
+            body {{
+                font-family: Arial, sans-serif;
+                max-width: 800px;
+                margin: 0 auto;
+                padding: 20px;
+                line-height: 1.6;
+            }}
+            h1 {{
+                color: #333;
+                margin-bottom: 10px;
+            }}
+            h3 {{
+                color: #666;
+                margin-top: 0;
+            }}
+            .job-meta {{
+                background: #f5f5f5;
+                padding: 15px;
+                border-radius: 5px;
+                margin: 20px 0;
+            }}
+            .job-meta p {{
+                margin: 5px 0;
+            }}
+            button {{
+                background-color: #007bff;
+                color: white;
+                padding: 12px 24px;
+                border: none;
+                border-radius: 5px;
+                cursor: pointer;
+                font-size: 16px;
+                margin-top: 20px;
+            }}
+            button:hover {{
+                background-color: #0056b3;
+            }}
+            a {{
+                text-decoration: none;
+            }}
+        </style>
+    </head>
+    <body>
+        <h1>{job.title}</h1>
+        <h3>{job.company}</h3>
+        
+        <div class="job-meta">
+            <p><strong>Location:</strong> {job.location}</p>
+            <p><strong>Experience:</strong> {job.experience}</p>
+            <p><strong>Employment Type:</strong> {job.employment_type}</p>
+            <p><strong>Salary:</strong> {job.salary}</p>
+        </div>
+        
+        <h2>Job Description</h2>
+        <div>{job.description}</div>
+        
+        <a href="{job.apply_url}" target="_blank" rel="noopener noreferrer">
+            <button>Apply Now</button>
+        </a>
+    </body>
+    </html>
+    """
+    
+    return HTMLResponse(content=html_content)
