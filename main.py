@@ -1,5 +1,6 @@
 from fastapi import FastAPI, Depends, HTTPException
 from fastapi.responses import Response, HTMLResponse
+from fastapi.responses import PlainTextResponse 
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
@@ -265,3 +266,9 @@ def job_detail_page(job_id: str, db: Session = Depends(get_db)):
     """
     
     return HTMLResponse(content=html_content)
+
+@app.get("/robots.txt", response_class=PlainTextResponse)
+def robots_txt():
+    return """User-agent: *
+Allow: /
+"""
