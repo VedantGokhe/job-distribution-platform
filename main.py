@@ -272,3 +272,9 @@ def robots_txt():
     return """User-agent: *
 Allow: /
 """
+
+from fastapi.responses import FileResponse
+
+@app.get("/sitemap.xml", include_in_schema=False)
+def sitemap():
+    return FileResponse("sitemap.xml", media_type="application/xml")
