@@ -273,8 +273,30 @@ def robots_txt():
 Allow: /
 """
 
-from fastapi.responses import FileResponse
+@app.get("/sitemap.xml", response_class=Response)
+def sitemap(db: Session = Depends(get_db)):
+    jobs = db.query(JobDB).all()
 
-@app.get("/sitemap.xml", include_in_schema=False)
-def sitemap():
-    return FileResponse("sitemap.xml", media_type="application/xml")
+    urlset = ET.Element(
+        "urlset",
+        xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
+    )
+
+    # Home page
+    url = ET.SubElement(urlset, "url")
+    ET.SubElement(url, "loc").text = "https://job-distribution-platform.onrender.com/"
+    ET.SubElement(url, "changefreq").text = "daily"
+    ET.SubElement(url, "priority").text = "1.0"
+
+    # Job pages
+    for job in jobs:
+        url = ET.SubElement(urlset, "url")
+        ET.SubElement(
+            url, "loc"
+        ).text = f"https://job-distribution-platform.onrender.com/jobs/{job.job_id}"
+        ET.SubElement(url, "changefreq").text = "daily"
+        ET.SubElement(url, "priority").text = "0.9"
+
+    xml = ET.tostring(urlset, encoding="utf-8", xml_declaration=True)
+    return Response(content=xml, media_type="application/xml")
+
