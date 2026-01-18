@@ -267,13 +267,29 @@ def job_detail_page(job_id: str, db: Session = Depends(get_db)):
     
     return HTMLResponse(content=html_content)
 
-@app.get("/robots.txt", response_class=PlainTextResponse)
-def robots_txt():
-    return """User-agent: *
-Allow: /
-"""
+from fastapi.responses import Response, PlainTextResponse
+from fastapi import Depends
+from sqlalchemy.orm import Session
+import xml.etree.ElementTree as ET
 
-@app.get("/sitemap.xml", response_class=Response)
+# =========================
+# robots.txt
+# =========================
+@app.get("/robots.txt", include_in_schema=False)
+def robots():
+    return PlainTextResponse(
+        content="""User-agent: *
+Allow: /
+
+Sitemap: https://job-distribution-platform.onrender.com/sitemap.xml
+"""
+    )
+
+
+# =========================
+# sitemap.xml (DYNAMIC FROM DB)
+# =========================
+@app.get("/sitemap.xml", include_in_schema=False)
 def sitemap(db: Session = Depends(get_db)):
     jobs = db.query(JobDB).all()
 
@@ -291,12 +307,11 @@ def sitemap(db: Session = Depends(get_db)):
     # Job pages
     for job in jobs:
         url = ET.SubElement(urlset, "url")
-        ET.SubElement(
-            url, "loc"
-        ).text = f"https://job-distribution-platform.onrender.com/jobs/{job.job_id}"
+        ET.SubElement(url, "loc").text = (
+            f"https://job-distribution-platform.onrender.com/jobs/{job.job_id}"
+        )
         ET.SubElement(url, "changefreq").text = "daily"
         ET.SubElement(url, "priority").text = "0.9"
 
     xml = ET.tostring(urlset, encoding="utf-8", xml_declaration=True)
     return Response(content=xml, media_type="application/xml")
-
